@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
 )
 
 type ParseResult struct {
@@ -35,21 +37,38 @@ func main() {
 		os.Exit(1)
 	}
 
-	for _, file := range files {
-		stats, err := processFile(file)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ошибка при обработке файла %s: %v\n", file, err)
-			continue
-		}
+	filePaths := make(chan string, len(files))
+	for _, path := range files {
+		filePaths <- path
+	}
 
+	close(filePaths)
+	var waitGroup sync.WaitGroup
+	results := make(chan FileStats)
+	done := make(chan struct{})
+
+	for i := 0; i < cfg.Workers; i++ {
+		waitGroup.Add(1)
+		go fileProcessor(filePaths, results, &waitGroup)
+	}
+
+	go func() {
+		waitGroup.Wait()
+		close(results)
+		close(done)
+	}()
+
+	for stats := range results {
 		printFileStats(stats)
 	}
+
+	<-done
 }
 
 func parseFlags() (ParseResult, error) {
 	path := flag.String("path", "", "путь к директории с текстовыми файлами или к одному файлу")
 	ext := flag.String("ext", ".txt", "расширение файлов для анализа")
-	workers := flag.Int("workers", 1, "количество рабочих горутин")
+	workers := flag.Int("workers", runtime.NumCPU(), "количество рабочих горутин")
 
 	flag.Parse()
 	if *path == "" {
@@ -117,4 +136,18 @@ func printFileStats(stats FileStats) {
 	fmt.Printf("Количество строк: %d\n", stats.Lines)
 	fmt.Printf("Количество символов: %d\n", stats.Chars)
 	fmt.Println()
+}
+
+func fileProcessor(filePaths <-chan string, results chan<- FileStats, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	for path := range filePaths {
+		stats, err := processFile(path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ошибка при обработке файла %s: %v\n", path, err)
+			continue
+		}
+
+		results <- stats
+	}
 }
