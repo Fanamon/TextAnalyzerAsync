@@ -2,29 +2,47 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 )
 
 type ParseResult struct {
-	Path    string
-	Ext     string
-	Workers int
+	Path     string
+	Ext      string
+	Workers  int
+	TopWords int
 }
 
 type FileStats struct {
-	Path  string
-	Words int
-	Lines int
-	Chars int
+	Path           string
+	Words          int
+	Lines          int
+	Chars          int
+	WordsFrequency map[string]int
+}
+
+type FileResults struct {
+	TopWords map[string]int
+	Mutex    sync.Mutex
+}
+
+type WordCount struct {
+	Word  string
+	Count int
 }
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
 	cfg, err := parseFlags()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -46,10 +64,11 @@ func main() {
 	var waitGroup sync.WaitGroup
 	results := make(chan FileStats)
 	done := make(chan struct{})
+	fileResults := FileResults{TopWords: make(map[string]int)}
 
 	for i := 0; i < cfg.Workers; i++ {
 		waitGroup.Add(1)
-		go fileProcessor(filePaths, results, &waitGroup)
+		go fileProcessor(filePaths, results, &waitGroup, &fileResults, ctx)
 	}
 
 	go func() {
@@ -63,19 +82,22 @@ func main() {
 	}
 
 	<-done
+
+	printTopWords(fileResults.TopWords, cfg.TopWords)
 }
 
 func parseFlags() (ParseResult, error) {
 	path := flag.String("path", "", "путь к директории с текстовыми файлами или к одному файлу")
 	ext := flag.String("ext", ".txt", "расширение файлов для анализа")
 	workers := flag.Int("workers", runtime.NumCPU(), "количество рабочих горутин")
+	topWords := flag.Int("top-words", 0, "N самых частых слов во всех файлах")
 
 	flag.Parse()
 	if *path == "" {
 		return ParseResult{}, fmt.Errorf("нужен флаг -path")
 	}
 
-	return ParseResult{Path: *path, Ext: *ext, Workers: *workers}, nil
+	return ParseResult{Path: *path, Ext: *ext, Workers: *workers, TopWords: *topWords}, nil
 }
 
 func collectFiles(root, ext string) ([]string, error) {
@@ -110,7 +132,12 @@ func processFile(path string) (FileStats, error) {
 	}
 
 	content := string(data)
-	words := len(strings.Fields(content))
+	wordsList := strings.Fields(content)
+	words := len(wordsList)
+	freq := make(map[string]int)
+	for _, w := range wordsList {
+		freq[strings.ToLower(w)]++
+	}
 
 	scanner := bufio.NewScanner(strings.NewReader(content))
 	lines := 0
@@ -127,7 +154,7 @@ func processFile(path string) (FileStats, error) {
 		chars++
 	}
 
-	return FileStats{Path: path, Lines: lines, Words: words, Chars: chars}, nil
+	return FileStats{Path: path, Lines: lines, Words: words, Chars: chars, WordsFrequency: freq}, nil
 }
 
 func printFileStats(stats FileStats) {
@@ -138,16 +165,51 @@ func printFileStats(stats FileStats) {
 	fmt.Println()
 }
 
-func fileProcessor(filePaths <-chan string, results chan<- FileStats, wg *sync.WaitGroup) {
+func fileProcessor(filePaths <-chan string, results chan<- FileStats, wg *sync.WaitGroup, fileResults *FileResults, ctx context.Context) {
 	defer wg.Done()
 
-	for path := range filePaths {
-		stats, err := processFile(path)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ошибка при обработке файла %s: %v\n", path, err)
-			continue
-		}
+	for {
+		select {
+		case <-ctx.Done():
+			return
 
-		results <- stats
+		case path, ok := <-filePaths:
+			if !ok {
+				return
+			}
+
+			stats, err := processFile(path)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "ошибка при обработке файла %s: %v\n", path, err)
+				continue
+			}
+
+			fileResults.Mutex.Lock()
+			for word, count := range stats.WordsFrequency {
+				fileResults.TopWords[word] += count
+			}
+			fileResults.Mutex.Unlock()
+
+			results <- stats
+		}
+	}
+}
+
+func printTopWords(wordCounts map[string]int, count int) {
+	if count <= 0 {
+		return
+	}
+
+	sortedWords := make([]WordCount, 0, len(wordCounts))
+	for word, cnt := range wordCounts {
+		sortedWords = append(sortedWords, WordCount{Word: word, Count: cnt})
+	}
+
+	sort.Slice(sortedWords, func(i, j int) bool {
+		return sortedWords[i].Count > sortedWords[j].Count
+	})
+
+	for i := 0; i < count && i < len(sortedWords); i++ {
+		fmt.Printf("%s: %d\n", sortedWords[i].Word, sortedWords[i].Count)
 	}
 }
