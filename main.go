@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -132,29 +131,50 @@ func processFile(path string) (FileStats, error) {
 	}
 
 	content := string(data)
-	wordsList := strings.Fields(content)
-	words := len(wordsList)
-	freq := make(map[string]int)
-	for _, w := range wordsList {
-		freq[strings.ToLower(w)]++
+	analyzers := []Analyzer{
+		WordCountAnalyzer{},
+		CharCountAnalyzer{},
+		LineCountAnalyzer{},
+		MostFrequentWordsAnalyzer{},
 	}
 
-	scanner := bufio.NewScanner(strings.NewReader(content))
-	lines := 0
-	for scanner.Scan() {
-		lines++
+	parts := make([]AnalysisResult, len(analyzers))
+	var inner sync.WaitGroup
+	for i, a := range analyzers {
+		inner.Add(1)
+
+		go func(index int, analyzer Analyzer) {
+			defer inner.Done()
+
+			parts[index] = analyzer.Analyze(content)
+		}(i, a)
 	}
 
-	if err := scanner.Err(); err != nil {
-		return FileStats{}, err
+	inner.Wait()
+
+	return mergeFileAnalysis(path, parts)
+}
+
+func mergeFileAnalysis(path string, analysisResults []AnalysisResult) (FileStats, error) {
+	stats := FileStats{
+		Path:           path,
+		WordsFrequency: make(map[string]int),
 	}
 
-	chars := 0
-	for range content {
-		chars++
+	for _, analysisResult := range analysisResults {
+		if analysisResult.Err != nil {
+			return FileStats{}, fmt.Errorf("%s: %w", analysisResult.Name, analysisResult.Err)
+		}
+
+		stats.Words += analysisResult.Words
+		stats.Lines += analysisResult.Lines
+		stats.Chars += analysisResult.Chars
+		for partWord, partWordFreq := range analysisResult.WordFreq {
+			stats.WordsFrequency[partWord] += partWordFreq
+		}
 	}
 
-	return FileStats{Path: path, Lines: lines, Words: words, Chars: chars, WordsFrequency: freq}, nil
+	return stats, nil
 }
 
 func printFileStats(stats FileStats) {
@@ -165,7 +185,9 @@ func printFileStats(stats FileStats) {
 	fmt.Println()
 }
 
-func fileProcessor(filePaths <-chan string, results chan<- FileStats, wg *sync.WaitGroup, fileResults *FileResults, ctx context.Context) {
+func fileProcessor(filePaths <-chan string, results chan<- FileStats, wg *sync.WaitGroup,
+	fileResults *FileResults, ctx context.Context,
+) {
 	defer wg.Done()
 
 	for {
