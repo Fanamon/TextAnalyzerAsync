@@ -18,6 +18,9 @@ type ParseResult struct {
 	Ext      string
 	Workers  int
 	TopWords int
+	MinSize  int64
+	MaxSize  int64
+	MinWords int
 }
 
 type FileStats struct {
@@ -48,7 +51,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	files, err := collectFiles(cfg.Path, cfg.Ext)
+	files, err := collectFiles(cfg.Path, cfg.Ext, cfg.MinSize, cfg.MaxSize)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -76,7 +79,18 @@ func main() {
 		close(done)
 	}()
 
-	for stats := range results {
+	filtered := make(chan FileStats)
+	go func() {
+		defer close(filtered)
+
+		for stats := range results {
+			if keepResult(stats, cfg.MinWords) {
+				filtered <- stats
+			}
+		}
+	}()
+
+	for stats := range filtered {
 		printFileStats(stats)
 	}
 
@@ -90,16 +104,22 @@ func parseFlags() (ParseResult, error) {
 	ext := flag.String("ext", ".txt", "расширение файлов для анализа")
 	workers := flag.Int("workers", runtime.NumCPU(), "количество рабочих горутин")
 	topWords := flag.Int("top-words", 0, "N самых частых слов во всех файлах")
+	minSize := flag.Int64("min-size", 0, "минимальный размер файла для анализа")
+	maxSize := flag.Int64("max-size", 0, "максимальный размер файла для анализа")
+	minWords := flag.Int("min-words", 0, "показывать только файлы с не меньшим числом слов")
 
 	flag.Parse()
 	if *path == "" {
 		return ParseResult{}, fmt.Errorf("нужен флаг -path")
 	}
 
-	return ParseResult{Path: *path, Ext: *ext, Workers: *workers, TopWords: *topWords}, nil
+	return ParseResult{
+		Path: *path, Ext: *ext, Workers: *workers, TopWords: *topWords, MinSize: *minSize, MaxSize: *maxSize,
+		MinWords: *minWords,
+	}, nil
 }
 
-func collectFiles(root, ext string) ([]string, error) {
+func collectFiles(root, ext string, minSize, maxSize int64) ([]string, error) {
 	if ext != "" && !strings.HasPrefix(ext, ".") {
 		ext = "." + ext
 	}
@@ -115,6 +135,16 @@ func collectFiles(root, ext string) ([]string, error) {
 		}
 
 		if strings.EqualFold(filepath.Ext(path), ext) {
+			info, err := dirEntry.Info()
+			if err != nil {
+				return err
+			}
+
+			size := info.Size()
+			if size < minSize || (maxSize > 0 && size > maxSize) {
+				return nil
+			}
+
 			files = append(files, path)
 		}
 
@@ -217,9 +247,13 @@ func fileProcessor(filePaths <-chan string, results chan<- FileStats, wg *sync.W
 	}
 }
 
-func printTopWords(wordCounts map[string]int, count int) {
-	if count <= 0 {
-		return
+func keepResult(stats FileStats, minWords int) bool {
+	return stats.Words >= minWords
+}
+
+func rankTopWords(wordCounts map[string]int, n int) []WordCount {
+	if n <= 0 {
+		return nil
 	}
 
 	sortedWords := make([]WordCount, 0, len(wordCounts))
@@ -228,10 +262,20 @@ func printTopWords(wordCounts map[string]int, count int) {
 	}
 
 	sort.Slice(sortedWords, func(i, j int) bool {
+		if sortedWords[i].Count == sortedWords[j].Count {
+			return sortedWords[i].Word < sortedWords[j].Word
+		}
 		return sortedWords[i].Count > sortedWords[j].Count
 	})
 
-	for i := 0; i < count && i < len(sortedWords); i++ {
-		fmt.Printf("%s: %d\n", sortedWords[i].Word, sortedWords[i].Count)
+	if n > len(sortedWords) {
+		n = len(sortedWords)
+	}
+	return sortedWords[:n]
+}
+
+func printTopWords(wordCounts map[string]int, count int) {
+	for _, item := range rankTopWords(wordCounts, count) {
+		fmt.Printf("%s: %d\n", item.Word, item.Count)
 	}
 }
