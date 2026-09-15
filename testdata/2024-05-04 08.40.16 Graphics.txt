@@ -1,0 +1,57 @@
+﻿GFX  08:40:16.678 ====================================================================================================
+GFX  08:40:16.678 Heroes of the Storm (B91769)
+GFX  08:40:16.678 
+GFX  08:40:16.678 Executable                      D:\Heroes of the Storm\Versions\Base91769\HeroesOfTheStorm_x64.exe
+GFX  08:40:16.678 <Parameters>                    -sso=1 -launch -uid heroes
+GFX  08:40:16.678 Parent Executable               \Device\HarddiskVolume5\Heroes of the Storm\Support64\HeroesSwitcher_x64.exe
+GFX  08:40:16.678 Grandparent Executable          \Device\HarddiskVolume5\Battle.net\Battle.net.exe
+GFX  08:40:16.678 LocalTime                       2024-05-04 08:40:16.678
+GFX  08:40:16.678 <ComputerUser>                  Asus
+GFX  08:40:16.678 <ComputerName>                  NECROTOR
+GFX  08:40:16.678 <Exe.Architecture>              x86_64
+GFX  08:40:16.678 <Version>                       2.55.4.91769
+GFX  08:40:16.678 <DataBuild>                     B91769
+GFX  08:40:16.678 <CodeBranch>                    branches/Heroes.55
+GFX  08:40:16.678 <CodeRevision>                  647160
+GFX  08:40:16.678 <Locale.Assets>                 enUS
+GFX  08:40:16.678 <Locale.Data>                   enUS
+GFX  08:40:16.678 <Locale.Install>                enUS
+GFX  08:40:16.678 <AccountCountry>                UZB
+GFX  08:40:16.678 <AgentVersion>                  2.34.7.8697
+GFX  08:40:16.678 TelemetrySessionId              A741277C-3E26-4540-B8F0-B000E178E857
+GFX  08:40:16.678 ====================================================================================================
+GFX  08:40:16.678 DXGI: Available
+GFX  08:40:17.830 VRAM Override Variables: Dedicated [0MB] Shared [0MB]
+GFX  08:40:17.956 Adapter "NVIDIA GeForce RTX 3050 Laptop GPU" Vendor 0x4318 Device 0x4318
+GFX  08:40:17.956 Adapter "AMD Radeon(TM) Graphics" Vendor 0x4098 Device 0x4098
+GFX  08:40:17.956 Skipped adapter "AMD Radeon(TM) Graphics" because no outputs
+GFX  08:40:17.956 Adapter "Microsoft Basic Render Driver" Vendor 0x5140 Device 0x5140
+GFX  08:40:17.956 Skipped adapter "Microsoft Basic Render Driver" because no outputs
+GFX  08:40:17.956 Attempting D3D11 device creation on "NVIDIA GeForce RTX 3050 Laptop GPU"
+GFX  08:40:18.137 Device creation success.
+GFX  08:40:18.138 VRAM Override Variables: Dedicated [0MB] Shared [0MB]
+GFX  08:40:18.139 VRAM Override Variables: Dedicated [0MB] Shared [0MB]
+GFX  08:40:18.139 Initialized D3D11 GraphicsDevice: NVIDIA GeForce RTX 3050 Laptop GPU (Driver Version: 0.55222.0.0, VRAM: 3964MB, SVMEM: 7887MB).
+GFX  08:40:18.139 Setting up swap chain.
+GFX  08:40:18.139 Trying fullscreen
+GFX  08:40:18.244 Found matching display mode width: 1920 height: 1080 RRN: 144 RRD: 1
+GFX  08:40:18.244 Resizing D3D11 swap chain (1920x1080)
+GFX  08:40:18.272 Hardware Depth Sampling: Available
+GFX  08:40:18.309 Resource Cache Override Variable: 0MB
+GFX  08:40:18.309 Resource Cache: 2048MB Win64 (15774MB Physical, 10890MB Process Virtual)
+GFX  08:40:18.309 Resource Cache Sound:  393MB 
+GFX  08:40:18.309 Resource Cache Common: 450MB 
+GFX  08:40:18.309 Resource Cache Texture Max: 1500MB 
+GFX  08:40:20.691 PerfNotifiers initialized
+GFX  08:40:20.885 Setting up swap chain.
+GFX  08:40:20.885 Trying fullscreen
+GFX  08:40:20.886 Found matching display mode width: 1920 height: 1080 RRN: 144 RRD: 1
+GFX  08:40:20.886 Resizing D3D11 swap chain (1920x1080)
+GFX  08:40:20.928 Resource Cache Texture: 1350MB 
+GFX  08:40:20.928 Resource Cache Texture Used: 0MB 
+GFX  09:09:15.580 Focus Event. Changing to windowed.
+GFX  09:10:28.468 Focus Event. Changing to fullscreen.
+GFX  09:10:29.073 Focus Event. Changing to windowed.
+GFX  09:11:26.405 Focus Event. Changing to fullscreen.
+GFX  09:11:27.866 Focus Event. Changing to windowed.
+GFX  09:12:10.049 Focus Event. Changing to fullscreen.
